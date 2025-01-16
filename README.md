@@ -1,6 +1,6 @@
-# Corporate RPG
+# Roleplaying LLM RPG
 
-A text-based RPG game where you navigate the treacherous waters of corporate life. Built with React, TypeScript, and Three.js.
+A text-based RPG game where you navigate the treacherous waters of life. Built with React, TypeScript, and Three.js. Powered by meta/meta-llama-3-70b-instruct. 
 
 ![Game Screenshot](https://github.com/user-attachments/assets/63b88770-5781-4d47-8351-6b156b208b40)
 
@@ -153,4 +153,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with [Vite](https://vitejs.dev/) and [React](https://reactjs.org/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
 - Image generation by [Replicate](https://replicate.com/)
-- Powered by Cloudflare Workers
+- Using Replicate.com for the meta/meta-llama-3-70b-instruct LLM

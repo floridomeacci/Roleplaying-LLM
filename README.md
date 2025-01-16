@@ -2,7 +2,7 @@
 
 A text-based RPG game where you navigate the treacherous waters of corporate life. Built with React, TypeScript, and Three.js.
 
-![Game Screenshot](https://github.com/stackblitz/corporate-rpg/raw/main/screenshot.png)
+![Game Screenshot](https://github.com/user-attachments/assets/63b88770-5781-4d47-8351-6b156b208b40)
 
 ## Features
 

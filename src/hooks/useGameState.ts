@@ -342,7 +342,8 @@ export function useGameState() {
     return null;
   };
 
-  const handleSubmit = async (prompt: string, diceRoll: number) => {
+  const handleSubmit = async (e: React.FormEvent, prompt: string, diceRoll: number) => {
+    e.preventDefault();
     console.log('handleSubmit called:', { prompt, diceRoll });
     if (!prompt.trim() || state.isLoading || !diceRoll) return;
 
@@ -507,8 +508,7 @@ ${state.input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
         template: promptTemplate
       },
       isLoading: true,
-      messages: [...prev.messages, { content: state.input, isUser: true }],
-      input: ''
+      messages: [...prev.messages, { content: prompt, isUser: true }]
     }));
 
     try {
@@ -518,7 +518,7 @@ ${state.input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
         body: JSON.stringify({
           top_p: 0.9,
           prompt: promptTemplate,
-          max_tokens: 256,
+          max_tokens: 512,
           min_tokens: 64,
           temperature: 0.7,
           prompt_template: promptTemplate
@@ -641,7 +641,7 @@ Defense: ${generatedStats.find(s => s.key === 'defense')?.value}`;
         body: JSON.stringify({
           top_p: 0.9,
           prompt: characterRequest,
-          max_tokens: 512,
+          max_tokens: 1024,
           min_tokens: 64,
           temperature: 0.7,
           prompt_template: CHARACTER_CREATION_PROMPT
@@ -669,7 +669,7 @@ Defense: ${generatedStats.find(s => s.key === 'defense')?.value}`;
         const type = typeMatch ? typeMatch[1].toLowerCase().replace(/[^a-z\s]/g, '') : '';
         const gender = genderMatch ? genderMatch[1].toLowerCase().replace(/[^a-z\s]/g, '') : '';
         const look = lookMatch ? lookMatch[1].replace(/[^a-z\s,]/g, '') : '';
-        const prompt = `professional corporate headshot portrait photo of a ${gender} ${type}, ${look}, wearing business attire, office setting, natural pose, neutral expression, high quality, 4k, realistic, detailed, cinematic lighting, professional photography`;
+        const prompt = `a headshot portrait photo of a ${gender} ${type}, ${look}, high quality, 4k, realistic, detailed, cinematic lighting, photography`;
 
         const response = await fetch('https://productai.brancaskitchen.workers.dev/api/recraft/predictions', {
           method: 'POST',
@@ -798,7 +798,8 @@ Defense: ${generatedStats.find(s => s.key === 'defense')?.value}`;
       handleDirectSubmit: (prompt: string, diceRoll: number) => {
         console.log('handleDirectSubmit called:', { prompt, diceRoll });
         if (!prompt.trim() || state.isLoading || !diceRoll) return;
-        handleSubmit(prompt, diceRoll);
+        setState(prev => ({ ...prev, input: '' }));
+        handleSubmit(new Event('submit') as React.FormEvent, prompt, diceRoll);
       },
       handleReset: () => {
         setState({

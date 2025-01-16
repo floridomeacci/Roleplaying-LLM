@@ -174,6 +174,10 @@ export function Dice({ onRoll, onSubmit, onAnimationComplete, disabled, classNam
         if (t >= 1) {
           t = 1;
           sceneRef.current!.isThrowing = false;
+          // Simulate Enter key press after dice finishes spinning
+          if (onSubmit) {
+            onSubmit();
+          }
           if (animationCompleteCallback) {
             animationCompleteCallback();
             animationCompleteCallback = null;
@@ -261,7 +265,9 @@ export function Dice({ onRoll, onSubmit, onAnimationComplete, disabled, classNam
     // Click handler
     const handleClick = () => {
       console.log('Dice clicked:', { isThrowing: sceneRef.current!.isThrowing, disabled });
-      if (sceneRef.current!.isThrowing || disabled) return;
+      if (sceneRef.current!.isThrowing || disabled) {
+        return;
+      }
       
       console.log('Starting dice throw animation');
       sceneRef.current!.isThrowing = true;
@@ -279,6 +285,11 @@ export function Dice({ onRoll, onSubmit, onAnimationComplete, disabled, classNam
     };
 
     containerRef.current.addEventListener('click', handleClick);
+    
+    // Add pointer-events: none when disabled
+    if (containerRef.current) {
+      containerRef.current.style.pointerEvents = disabled ? 'none' : 'auto';
+    }
 
     return () => {
       if (containerRef.current) {
@@ -286,12 +297,12 @@ export function Dice({ onRoll, onSubmit, onAnimationComplete, disabled, classNam
         containerRef.current.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }, [disabled]);
 
   return (
     <div 
       ref={containerRef} 
-      className={`w-full h-full ${className || ''} ${disabled ? 'cursor-not-allowed opacity-50' : 'cursor-pointer'}`} 
+      className={`w-full h-full ${className || ''} ${disabled ? 'cursor-not-allowed opacity-50 pointer-events-none' : 'cursor-pointer'}`} 
     />
   );
 }

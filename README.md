@@ -153,4 +153,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - Built with [Vite](https://vitejs.dev/) and [React](https://reactjs.org/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
 - Image generation by [Replicate](https://replicate.com/)
-- Using Replicate.com for the meta/meta-llama-3-70b-instruct LLM
+- Powered by Cloudflare Workers

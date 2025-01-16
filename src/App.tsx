@@ -15,8 +15,11 @@ function App() {
     <div className="h-screen bg-black text-[#33ff33] font-mono flex flex-col overflow-hidden">
       {/* Mission Banner */}
       {state.characterInfo?.mission && (
-        <div className="w-full bg-white/5 text-white px-4 py-3 text-center text-sm border-b border-white/10 font-mono h-[150px] flex items-center justify-center whitespace-normal">
-          Mission: {state.characterInfo.mission}
+        <div className="w-full bg-[#33ff33] text-black px-2 py-1 text-sm border-b border-[#33ff33]/20 font-mono h-[56px] flex items-center whitespace-normal">
+          <span className="font-bold">
+            <span className="mr-2">&gt;</span>
+            Mission: {state.characterInfo.mission}
+          </span>
         </div>
       )}
 

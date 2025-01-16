@@ -46,10 +46,12 @@ export function GameUI({
 }: GameUIProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLInputElement>(null);
+  const [showDebug, setShowDebug] = React.useState(false);
   const [showShake, setShowShake] = React.useState(false);
   const [showRollMessage, setShowRollMessage] = React.useState(false);
   const [pendingSubmit, setPendingSubmit] = React.useState(false);
   const [hideCurrentMoves, setHideCurrentMoves] = React.useState(false);
+  const [diceDisabled, setDiceDisabled] = React.useState(false);
 
   React.useEffect(() => {
     if (pendingSubmit && currentRequest.diceRoll) {
@@ -64,25 +66,28 @@ export function GameUI({
     }
   }, [messages, shouldAutoScroll]);
 
+  // Reset dice state when input changes
+  React.useEffect(() => {
+    if (input.trim()) {
+      setDiceDisabled(false);
+      handlers.setDiceRoll(undefined);
+    }
+  }, [input]);
+
   // Handle move suggestion click
   const handleMoveClick = (move: string) => {
     console.log('Move clicked:', move);
-    setHideCurrentMoves(true);
-    onSuggestionClick(move);
-    const diceContainer = document.querySelector<HTMLDivElement>('.dice-container');
-    if (diceContainer) {
-      console.log('Triggering dice roll from move click');
-      diceContainer.click();
-    }
+    onInputChange({ target: { value: move } } as React.ChangeEvent<HTMLInputElement>);
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log('Form submit attempted:', { input: input.trim(), diceRoll: currentRequest.diceRoll });
-    if (!input.trim()) return;
+    const currentInput = input.trim();
+    if (!currentInput) return;
     
     if (!currentRequest.diceRoll) {
-      console.log('No dice roll, showing shake animation');
+      console.log('No dice roll yet, showing shake animation');
       setShowShake(true);
       setShowRollMessage(true);
       setTimeout(() => setShowShake(false), 300);
@@ -91,7 +96,7 @@ export function GameUI({
     }
     
     console.log('Submitting with dice roll:', currentRequest.diceRoll);
-    handlers.handleDirectSubmit(input, currentRequest.diceRoll);
+    handlers.handleDirectSubmit(currentInput, currentRequest.diceRoll);
   };
   
   // Auto-focus input after submit
@@ -108,11 +113,11 @@ export function GameUI({
   const stats = allStats.length > 5 ? allStats.slice(5) : []; // Character stats
 
   return (
-    <div className="h-full flex flex-col md:flex-row bg-black">
+    <div className="h-screen flex flex-col md:flex-row bg-black relative overflow-hidden">
       {/* Left Column - Chat */}
-      <div className="w-full md:w-1/2 lg:w-2/5 flex flex-col p-2 md:border-r border-[#33ff33]/20">
+      <div className={`w-full flex flex-col p-2 md:border-r border-[#33ff33]/20 transition-all duration-300 ${showDebug ? 'md:w-1/2 lg:w-2/5' : 'md:w-2/3 lg:w-3/4'}`}>
         <div 
-          className="h-[calc(100vh-12rem)] overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#33ff33]/20 hover:scrollbar-thumb-[#33ff33]/40 relative"
+          className="flex-1 overflow-y-auto space-y-0.5 scrollbar-thin scrollbar-track-transparent scrollbar-thumb-[#33ff33]/20 hover:scrollbar-thumb-[#33ff33]/40 relative"
           onScroll={onScroll}
         >
           {messages.length === 0 && (
@@ -161,90 +166,65 @@ export function GameUI({
         </div>
 
         {/* Bottom Section with Moves, Input and Side Container */}
-        <div className="mt-auto border-t border-[#33ff33]/20 pt-2 flex gap-2 items-end">
+        <div className="mt-auto pt-2 flex gap-2 items-end">
           {/* Moves and Input Container */}
-          <div className="flex-1 flex flex-col gap-2">
+          <div className="flex-1 flex flex-col gap-2 relative">
             {/* Moves Section */}
-            {messages[messages.length - 1]?.suggestions && !hideCurrentMoves && (
-              <div className="mb-2">
-                <div className="flex flex-wrap gap-2">
-                  {messages[messages.length - 1].suggestions?.map((move, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => handleMoveClick(move)}
-                      className="text-sm px-3 py-1 border border-[#33ff33]/40 rounded hover:bg-[#33ff33]/10 transition-colors"
-                    >
-                      {move}
-                    </button>
-                  ))}
-                </div>
+            <div className="mb-2 pb-2 border-b border-[#33ff33]/20">
+              <div className="flex flex-wrap gap-2 justify-start">
+                {messages[messages.length - 1]?.suggestions ? (
+                  messages[messages.length - 1].suggestions.map((move, idx) => (
+                  <button
+                    key={messages[messages.length - 1].suggestions!.length - idx - 1}
+                    onClick={() => handleMoveClick(move)}
+                    className="text-sm px-3 py-1 border border-[#33ff33]/40 rounded hover:bg-[#33ff33]/10 transition-colors whitespace-nowrap max-w-full"
+                  >
+                    {messages[messages.length - 1].suggestions![messages[messages.length - 1].suggestions!.length - idx - 1]}
+                  </button>
+                  ))
+                ) : null}
               </div>
-            )}
+            </div>
 
             {/* Input Form */}
-            <form onSubmit={handleFormSubmit} className="flex flex-col gap-2 relative">
-              <div className="flex gap-1">
-              <input
-                type="text"
+            <form onSubmit={handleFormSubmit} className="flex items-center gap-2">
+              <div className="flex-1 flex gap-1">
+              <textarea
                 ref={inputRef}
-                value={input}
+                value={input || ''}
                 onChange={onInputChange}
                 placeholder="Type a message..."
-                className={`flex-1 bg-transparent border-0 text-[#33ff33] placeholder-[#33ff33]/40 focus:ring-0 px-1 text-sm ${showShake ? 'shake' : ''}`}
+                className={`w-full h-24 bg-transparent border-0 text-[#33ff33] placeholder-[#33ff33]/40 focus:ring-0 px-1 text-sm resize-none ${showShake ? 'shake' : ''}`}
                 disabled={isLoading}
+                rows={4}
               />
-              <button
-                type="button"
-                onClick={onUndo}
-                disabled={isLoading}
-                className="px-2 text-[#33ff33] hover:text-[#33ff33]/80 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                ↺
-              </button>
               </div>
 
-              <div className="flex gap-2">
-                {/* Side Container */}
-                <div className={`w-24 h-24 border border-[#33ff33]/20 rounded relative hover:border-[#33ff33]/40 transition-colors ${!currentRequest.diceRoll && showShake ? 'shake' : ''}`}>
-                  <Dice 
-                    className="dice-container"
-                    disabled={!!currentRequest.diceRoll}
-                    onRoll={(value) => {
-                      handlers.setDiceRoll(value);
-                      if (input.trim()) {
-                        handlers.handleSubmit(new Event('submit') as React.FormEvent, input, value);
-                      }
-                    }}
-                    onSubmit={() => setPendingSubmit(true)}
-                  />
-                  {currentRequest.diceRoll && (
-                    <div className="absolute top-1 right-1 text-xs opacity-70">
-                      d20: {currentRequest.diceRoll}
-                    </div>
-                  )}
-                </div>
-
-              <button
-                type="submit"
-                disabled={isLoading || !input.trim() || !currentRequest.diceRoll}
-                className="flex-1 h-24 bg-[#33ff33]/10 border border-[#33ff33] rounded-lg hover:bg-[#33ff33]/20 disabled:opacity-50 disabled:cursor-not-allowed text-sm relative group tooltip-container submit-button flex items-center justify-center gap-2 transition-all"
-              >
-                <span>Send</span>
-                <span className="transform group-hover:translate-x-0.5 transition-transform">→</span>
-                {input.trim() && !currentRequest.diceRoll && !showRollMessage && (
-                  <div className="absolute bottom-full right-0 mb-2 whitespace-nowrap bg-black border border-[#33ff33] text-[#33ff33] px-2 py-1 rounded text-xs opacity-0 group-hover:opacity-100 transition-opacity z-50">
-                    Roll the dice first
+              {/* Dice Container */}
+              <div className={`w-24 h-24 border ${input.trim() && !currentRequest.diceRoll ? 'border-[#33ff33]' : 'border-[#33ff33]/20'} rounded relative transition-colors ${!currentRequest.diceRoll && showShake ? 'shake' : ''}`}>
+                <Dice 
+                  className="dice-container"
+                  onRoll={(value) => {
+                    handlers.setDiceRoll(value);
+                    if (input.trim()) {
+                      handlers.handleSubmit(new Event('submit') as React.FormEvent, input, value);
+                    }
+                  }}
+                  onSubmit={() => setPendingSubmit(true)}
+                />
+                {currentRequest.diceRoll && (
+                  <div className="absolute top-1 right-1 text-xs opacity-70">
+                    d20: {currentRequest.diceRoll}
                   </div>
                 )}
-              </button>
               </div>
             </form>
           </div>
-        </div>
       </div>
+    </div>
 
       {/* Right Column - Status */}
-      <div className="w-full md:w-1/4 p-4 flex flex-col border-r border-[#33ff33]/20 overflow-y-auto">
+      <div className={`w-full md:w-1/4 p-4 flex flex-col border-r border-[#33ff33]/20 overflow-y-auto transition-all duration-300 ${showDebug ? '' : 'md:w-1/3 lg:w-1/4'}`}>
         {/* Level */}
         {allStats.length > 0 && characterInfo && (
           <div className="mb-4">
@@ -449,13 +429,16 @@ export function GameUI({
       </div>
 
       {/* Debug Panel */}
-      <div className="w-full md:w-1/3 p-4 flex flex-col">
-        <div className="flex flex-col h-full">
-          <div className="flex items-center gap-2 mb-2">
-            <Bug className="w-4 h-4" />
-            <h2 className="text-sm uppercase opacity-80">Debug Info</h2>
-          </div>
-          <div className="flex flex-col gap-4 h-full w-full">
+      <div className={`absolute right-0 top-0 h-full flex transition-all duration-300 ${showDebug ? '' : 'translate-x-[calc(100%-1rem)]'}`}>
+        <button 
+          onClick={() => setShowDebug(!showDebug)}
+          className="absolute -left-8 top-1/2 -translate-y-1/2 rotate-90 bg-black border border-[#33ff33]/20 px-2 py-1 text-xs rounded-t flex items-center gap-1 hover:bg-[#33ff33]/10 transition-colors z-10"
+        >
+          <Bug className="w-3 h-3 -rotate-90" />
+          <span>Debug</span>
+        </button>
+        <div className={`w-full md:w-96 h-full p-4 flex flex-col border-l border-[#33ff33]/20 bg-black transition-all duration-300 ${showDebug ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className="flex flex-col gap-4 h-full">
             <div className="w-full overflow-y-auto text-xs font-mono whitespace-pre-wrap break-words opacity-80">
               <strong className="text-[#ffd700]">Request:</strong>
               <pre className="mt-1 text-[#33ff33]/70 h-[calc((100vh-18rem)/3)] overflow-y-auto whitespace-pre-wrap break-all">

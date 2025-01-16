@@ -387,23 +387,6 @@ You are a character in an RPG game. Keep responses concise and use natural, conv
 CRITICAL: You MUST wrap the main message that should appear in the terminal with [MESSAGE] and [/MESSAGE] tags.
 Example: [MESSAGE]You enter the dark cave. The air is damp and cold.[/MESSAGE]
 
-${state.currentRequest.diceRoll ? `[DICE]Rolled ${state.currentRequest.diceRoll} on d20[/DICE]\n` : ''}
-
-DICE ROLL RULES:
-1. When a d20 roll is present, use it to determine success:
-   - 1-5: Critical failure (negative worst possible outcome)
-   - 6-10: Failure (bad outcome)
-   - 11-15: Partial success (mixed outcome)
-   - 16-19: Success (good outcome)
-   - 20: Critical success (best possible outcome)
-2. Examples:
-   - Sneaking (roll: 3): "You trip and fall, alerting everyone!"
-   - Negotiating (roll: 8): "They reject your offer outright."
-   - Searching (roll: 13): "You find something, but it's not what you hoped for."
-   - Fighting (roll: 17): "Your attack lands perfectly!"
-   - Hacking (roll: 20): "You gain complete system access!"
-3. ALWAYS consider the roll when determining outcomes
-
 Character Status:
 ${state.characterInfo?.name || 'Unknown'}
 Level ${level} ${state.characterInfo?.type || 'Unknown'}
@@ -450,6 +433,17 @@ IMPORTANT RULES:
 10. Higher agility = better dodge chance
 11. Higher luck = better critical hits and item finds
 12. Higher charisma = better NPC interactions
+13. The below dice rule dictates how you should respond.
+
+
+${state.currentRequest.diceRoll ? `[DICE]User rolled ${state.currentRequest.diceRoll} on d20 dice. ${
+  state.currentRequest.diceRoll <= 5 ? 'You must respond with the worst possible outcome to the prompt.' :
+  state.currentRequest.diceRoll <= 10 ? 'You must respond with a bad outcome to the prompt.' :
+  state.currentRequest.diceRoll <= 15 ? 'You must respond with a mixed outcome to the prompt.' :
+  state.currentRequest.diceRoll <= 19 ? 'You must respond with a good outcome to the prompt.' :
+  'You must respond with the best possible outcome to the prompt.'
+}[/DICE]\n` : ''}
+
 
 Game State: ${state.gameState}
 Current Enemy: ${state.currentEnemy ? state.currentEnemy.type : 'None'}
@@ -551,7 +545,8 @@ ${state.input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
         : output
             .replace(/^\$\s*\$\s*/, '')
             .replace(/^\$\s*/, '')
-            .trim();
+            .trim()
+            .replace(/\[COINS\][+-]?\d+\[\/COINS\]/g, '');
 
       const statChanges = parseStatChanges(output);
       if (statChanges) {
@@ -564,7 +559,8 @@ ${state.input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
       cleanedOutput = cleanedOutput
         .replace(/\n\s*\n/g, '\n')
         .replace(/^\s*\n/, '')
-        .replace(/\n\s*$/, '');
+        .replace(/\n\s*$/, '')
+        .replace(/\[COINS\][+-]?\d+\[\/COINS\]/g, '');
       
       setState(prev => ({
         ...prev,

@@ -1,8 +1,25 @@
 # Fantasy RPG Adventure
 
-A text-based RPG game where you embark on epic quests and adventures. Built with React, TypeScript, and Three.js. Features real-time character animations with item tracking and dynamic storytelling powered by AI.
+A text-based RPG game with AI-powered storytelling and real-time character animations. Built with React, TypeScript, and Three.js. The game features dynamic story generation based on random word combinations, OpenPose-based character animations with item tracking, and fully AI-controlled game mechanics.
 
 ![Game Screenshot](https://github.com/user-attachments/assets/867e9c32-11f5-4078-887c-224f19a2a560)
+
+## Current Development Status
+
+The game is actively being developed with the following features currently working:
+
+- ✨ **Random Story Generation**: Creates unique narratives using random word combinations
+- 🎮 **OpenPose Animations**: Character animations with real-time item tracking
+- 🎨 **AI Image Generation**: Generates character portraits and story-based scene images
+- 📊 **Dynamic Stats System**: LLM-controlled stats and inventory management
+- ⚔️ **Level Progression**: Gain experience, level up, and improve stats
+- 🎲 **D20 Dice System**: Roll-based action resolution
+- 🎯 **Mission System**: AI-generated quests and objectives (in progress)
+
+Coming Soon:
+- 🎥 AI Video Generation integration with OpenPose animations
+- 🖼️ Enhanced story-based image generation
+- 🎭 More complex mission and quest systems
 
 ## Features
 
@@ -46,8 +63,9 @@ A text-based RPG game where you embark on epic quests and adventures. Built with
 ### Animation System
 - Real-time character animations
 - Dynamic item tracking for both hands
-- Smooth transitions between animations
-- Visual feedback for actions
+- OpenPose-based character rigging
+- Support for various actions and states
+- Real-time item visualization
 
 ## Tech Stack
 
@@ -56,8 +74,11 @@ A text-based RPG game where you embark on epic quests and adventures. Built with
 - Three.js
 - Tailwind CSS
 - Vite
-- Lucide Icons
-- Cloudflare Workers (for API)
+- Cloudflare Workers
+  - Animation API for OpenPose animations
+  - Item API for inventory visualization
+  - Image generation for characters and scenes
+  - LLM integration for story generation
 
 ## Getting Started
 
@@ -93,11 +114,11 @@ src/
 
 ### Key Components
 
-- \`GameUI\`: Main game interface
-- \`AnimationOverlay\`: Handles character animations and item tracking
-- \`Dice\`: 3D dice rolling system
-- \`SlotMachine\`: Character path generation
-- \`Onboarding\`: Character creation flow
+- \`GameUI\`: Main game interface with chat and character status
+- \`AnimationOverlay\`: OpenPose animation system with item tracking
+- \`Dice\`: 3D dice rolling system with Three.js
+- \`SlotMachine\`: Random word combination generator for story paths
+- \`Onboarding\`: Character creation with AI portrait generation
 
 ### Building
 
@@ -132,10 +153,3 @@ The game is deployed on Netlify. To deploy your own instance:
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
-
-- Icons by [Lucide](https://lucide.dev/)
-- 3D rendering powered by [Three.js](https://threejs.org/)
-- Built with [Vite](https://vitejs.dev/) and [React](https://reactjs.org/)
-- Styled with [Tailwind CSS](https://tailwindcss.com/)
-- Animations powered by [gifuct-js](https://github.com/matt-way/gifuct-js)
-- Deployed on [Netlify](https://www.netlify.com/)

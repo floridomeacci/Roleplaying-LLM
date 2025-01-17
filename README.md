@@ -1,6 +1,6 @@
-# Corporate RPG
+# Fantasy RPG Adventure
 
-A text-based RPG game where you navigate the treacherous waters of corporate life. Built with React, TypeScript, and Three.js. Features real-time character animations with item tracking and dynamic storytelling.
+A text-based RPG game where you embark on epic quests and adventures. Built with React, TypeScript, and Three.js. Features real-time character animations with item tracking and dynamic storytelling powered by AI.
 
 ![Game Screenshot](https://github.com/user-attachments/assets/867e9c32-11f5-4078-887c-224f19a2a560)
 
@@ -11,7 +11,7 @@ A text-based RPG game where you navigate the treacherous waters of corporate lif
 - 🎨 AI-generated character portraits and item images
 - 🎭 Rich narrative interactions with LLM-powered responses
 - 📊 Detailed character stats and inventory system
-- 💼 Corporate-themed missions and challenges
+- 🗡️ Dynamic combat and skill checks
 - 🎯 Skill-based progression system
 - 🎲 D20-based action resolution
 
@@ -24,7 +24,7 @@ A text-based RPG game where you navigate the treacherous waters of corporate lif
 - Get assigned random starting stats and equipment
 
 ### Stats System
-- **Health**: Physical and mental wellbeing
+- **Health**: Physical wellbeing
 - **Energy**: Required for actions
 - **Damage**: Offensive capabilities
 - **Defense**: Protective capabilities
@@ -62,52 +62,52 @@ A text-based RPG game where you navigate the treacherous waters of corporate lif
 ## Getting Started
 
 1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/corporate-rpg.git
-cd corporate-rpg
-```
+\`\`\`bash
+git clone https://github.com/yourusername/fantasy-rpg.git
+cd fantasy-rpg
+\`\`\`
 
 2. Install dependencies:
-```bash
+\`\`\`bash
 npm install
-```
+\`\`\`
 
 3. Start the development server:
-```bash
+\`\`\`bash
 npm run dev
-```
+\`\`\`
 
 4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
 ## Development
 
 ### Project Structure
-```
+\`\`\`
 src/
 ├── components/      # React components
 ├── hooks/          # Custom React hooks
 ├── types/          # TypeScript type definitions
 ├── data/          # Game data and configurations
 └── utils/         # Utility functions
-```
+\`\`\`
 
 ### Key Components
 
-- `GameUI`: Main game interface
-- `AnimationOverlay`: Handles character animations and item tracking
-- `Dice`: 3D dice rolling system
-- `SlotMachine`: Character path generation
-- `Onboarding`: Character creation flow
+- \`GameUI\`: Main game interface
+- \`AnimationOverlay\`: Handles character animations and item tracking
+- \`Dice\`: 3D dice rolling system
+- \`SlotMachine\`: Character path generation
+- \`Onboarding\`: Character creation flow
 
 ### Building
 
 To create a production build:
 
-```bash
+\`\`\`bash
 npm run build
-```
+\`\`\`
 
-The build output will be in the `dist/` directory.
+The build output will be in the \`dist/\` directory.
 
 ### Deployment
 
@@ -116,15 +116,15 @@ The game is deployed on Netlify. To deploy your own instance:
 1. Fork this repository
 2. Connect your fork to Netlify
 3. Configure the build settings:
-   - Build command: `npm run build`
-   - Publish directory: `dist`
+   - Build command: \`npm run build\`
+   - Publish directory: \`dist\`
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
+2. Create your feature branch (\`git checkout -b feature/amazing-feature\`)
+3. Commit your changes (\`git commit -m 'Add some amazing feature'\`)
+4. Push to the branch (\`git push origin feature/amazing-feature\`)
 5. Open a Pull Request
 
 ## License

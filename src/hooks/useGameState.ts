@@ -39,6 +39,7 @@ export function useGameState() {
   const [state, setState] = React.useState<GameState>({
     messages: [],
     input: '',
+    animations: [],
     isCreating: false,
     history: [],
     showStartDialog: true,
@@ -342,6 +343,25 @@ export function useGameState() {
     return null;
   };
 
+  // Fetch animations list on mount
+  React.useEffect(() => {
+    async function fetchAnimations() {
+      try {
+        const response = await fetch('https://tamagotchianimation.brancaskitchen.workers.dev/list');
+        const data = await response.json();
+        if (data.files) {
+          const animations = data.files
+            .map(file => file.name.replace('Animations/', '').replace('.gif', ''))
+            .sort();
+          setState(prev => ({ ...prev, animations }));
+        }
+      } catch (error) {
+        console.error('Error fetching animations:', error);
+      }
+    }
+    fetchAnimations();
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent, prompt: string, diceRoll: number) => {
     e.preventDefault();
     console.log('handleSubmit called:', { prompt, diceRoll });
@@ -383,6 +403,12 @@ export function useGameState() {
     const promptTemplate = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
 You are a character in an RPG game. Keep responses concise and use natural, conversational language. You MUST track and update all character stats appropriately.
+
+Select an animation from the following list that best matches the action or situation:
+Backflip, Boxing, Dancing, Dancing2, DancingTwerk, Death, Death2, Death3, Death4, Drinking, Driving, Fighting, FistFight, Kicking, LookAround, Looking, ReadyToFight, Shooting, StandingUp, Swimming, Talking, Talking2, TalkingOnACellPhone, WalkWithRifle, Walking, Walking2, WithdrawingSword, Yelling
+
+CRITICAL: You MUST include an [ANIMATION] tag with your selected animation in your response.
+Example: [ANIMATION]Walking[/ANIMATION]
 
 CRITICAL: You MUST wrap the main message that should appear in the terminal with [MESSAGE] and [/MESSAGE] tags.
 Example: [MESSAGE]You enter the dark cave. The air is damp and cold.[/MESSAGE]
@@ -431,7 +457,7 @@ IMPORTANT RULES:
 8. Higher dexterity = better defense
 9. Higher endurance = less energy cost
 10. Higher agility = better dodge chance
-11. Higher luck = better critical hits and item finds
+11. Higher wisdom = better decision making and spell effectiveness
 12. Higher charisma = better NPC interactions
 13. The below dice rule dictates how you should respond.
 
@@ -464,27 +490,28 @@ Example responses:
 Remember:
 1. ALWAYS use proper tags for ANY changes
 2. Keep responses concise and clear
-3. Be RUTHLESS - dangerous actions have DEADLY consequences
-4. Maintain immersive RPG atmosphere
-5. ALWAYS provide available actions with [MOVES]action1,action2[/MOVES]
-6. EVERY action must consume energy (0-10):
+3. ALWAYS include an [ANIMATION] tag that matches the action
+4. Be RUTHLESS - dangerous actions have DEADLY consequences
+5. Maintain immersive RPG atmosphere
+6. ALWAYS provide available actions with [MOVES]action1,action2[/MOVES]
+7. EVERY action must consume energy (0-10):
    - Light actions (looking, talking): 1 energy
    - Medium actions (searching, gathering): 2-5 energy
    - Heavy actions (fighting, running): 6-8 energy
    - Endurance stat reduces energy cost by 1 (minimum 0)
    Example: If endurance is 2, a heavy action costs 1 energy instead of 3
-7. If not enough energy, action fails catastrophically
-8. ALWAYS check energy before allowing actions
-9. Resting restores 5-10 energy based on endurance
-10. CRITICAL: Dangerous or foolish actions can result in instant death or being fired
+8. If not enough energy, action fails catastrophically
+9. ALWAYS check energy before allowing actions
+10. Resting restores 5-10 energy based on endurance
+11. CRITICAL: Dangerous or foolish actions can result in instant death or being fired
     Examples:
     - Jumping into lava: instant death
     - Doing something ilegal at level 1: instant fired
     - Drinking unknown substances: possible death
     - Fighting when exhausted: severe penalties or death
     - Ignoring warnings: deadly consequences
-11. NO MERCY for obviously fatal or stupid choices
-12. Scale damage based on danger level:
+12. NO MERCY for obviously fatal or stupid choices
+13. Scale damage based on danger level:
     - Minor threats: 5-15 damage
     - Moderate threats: 15-30 damage
     - Severe threats: 30-50 damage
@@ -526,6 +553,10 @@ ${state.input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
       let messageMatches = output.matchAll(/\[MESSAGE\]([\s\S]*?)\[\/MESSAGE\]/gs);
       let messages = Array.from(messageMatches, m => m[1].trim());
       
+      // Extract animation
+      const animationMatch = output.match(/\[ANIMATION\](.*?)\[\/ANIMATION\]/);
+      const selectedAnimation = animationMatch ? animationMatch[1].trim() : null;
+      
       // If no [MESSAGE] tags found, try to clean up the output
       if (messages.length === 0) {
         // Convert any underscore-style tags to bracket style
@@ -565,6 +596,7 @@ ${state.input}<|eot_id|><|start_header_id|>assistant<|end_header_id|>`;
       setState(prev => ({
         ...prev,
         botResponse: output,
+        selectedAnimation: selectedAnimation ? `Animations/${selectedAnimation}.gif` : null,
         messages: [
           ...prev.messages,
           { 

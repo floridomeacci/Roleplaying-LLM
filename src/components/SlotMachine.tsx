@@ -8,11 +8,14 @@ function getRandomWord(): string {
 
 interface SlotMachineProps {
   onComplete: (result: string) => void;
+  onSpinStart?: () => void;
+  onSpinEnd?: () => void;
 }
 
-export function SlotMachine({ onComplete }: SlotMachineProps) {
+export function SlotMachine({ onComplete, onSpinStart, onSpinEnd }: SlotMachineProps) {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<string[]>(['?', '?', '?', '?']);
+  const [showFlash, setShowFlash] = useState(false);
   const spinTimeouts = useRef<NodeJS.Timeout[]>([]);
   const finalWords = useRef<string[]>([]);
 
@@ -42,6 +45,12 @@ export function SlotMachine({ onComplete }: SlotMachineProps) {
         // If this is the last reel, complete the spin
         if (reelIndex === 3) {
           setSpinning(false);
+          setShowFlash(true);
+          setTimeout(() => {
+            setShowFlash(false);
+            onSpinEnd?.();
+            onComplete(finalWords.current.join(' '));
+          }, 1000); // Flash for 1 second before transitioning
         }
       }
     };
@@ -51,6 +60,7 @@ export function SlotMachine({ onComplete }: SlotMachineProps) {
 
   const spin = () => {
     if (spinning) return;
+    onSpinStart?.();
     
     // Get random words for final result
     finalWords.current = [
@@ -73,12 +83,6 @@ export function SlotMachine({ onComplete }: SlotMachineProps) {
   };
 
   useEffect(() => {
-    if (!spinning && result.every(r => r !== '?')) {
-      onComplete(result.join(' '));
-    }
-  }, [spinning, result]);
-
-  useEffect(() => {
     // Cleanup timeouts on unmount
     return () => {
       spinTimeouts.current.forEach(clearTimeout);
@@ -91,11 +95,11 @@ export function SlotMachine({ onComplete }: SlotMachineProps) {
         {result.map((word, index) => (
           <div
             key={index}
-            className={`w-32 h-16 flex items-center justify-center border border-[#33ff33]/20 rounded bg-black/50 overflow-hidden transition-all duration-300 ${
-              spinning ? 'animate-pulse' : ''
+            className={`w-32 h-16 flex items-center justify-center border border-[#33ff33]/20 rounded bg-black/50 overflow-hidden transition-all duration-300 font-mono ${spinning ? 'animate-pulse' : ''} ${
+              showFlash ? 'text-white animate-fade-out' : ''
             }`}
           >
-            <div className="text-lg font-mono whitespace-nowrap overflow-hidden text-ellipsis px-2">{word}</div>
+            <div className="text-lg whitespace-nowrap overflow-hidden text-ellipsis px-2 font-mono">{word}</div>
           </div>
         ))}
       </div>

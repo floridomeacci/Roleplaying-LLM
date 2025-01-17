@@ -1,68 +1,53 @@
-# Roleplaying LLM RPG
+# Corporate RPG
 
-A text-based RPG game where you navigate the treacherous waters of life. Built with React, TypeScript, and Three.js. Powered by meta/meta-llama-3-70b-instruct. 
+A text-based RPG game where you navigate the treacherous waters of corporate life. Built with React, TypeScript, and Three.js. Features real-time character animations with item tracking and dynamic storytelling.
 
 ![Game Screenshot](https://github.com/user-attachments/assets/63b88770-5781-4d47-8351-6b156b208b40)
 
 ## Features
 
-- 🎲 Real-time 3D dice rolling with Three.js
-- 🎮 Dynamic character creation with unique paths
+- 🎮 Real-time character animations with dynamic item tracking
+- 🎲 3D dice rolling system with Three.js
+- 🎨 AI-generated character portraits and item images
+- 🎭 Rich narrative interactions with LLM-powered responses
 - 📊 Detailed character stats and inventory system
 - 💼 Corporate-themed missions and challenges
-- 🎨 AI-generated character portraits
 - 🎯 Skill-based progression system
-- 🎭 Rich narrative interactions
+- 🎲 D20-based action resolution
 
-## How It Works
+## Core Game Mechanics
 
-### LLM Integration
-The game uses a Language Learning Model (LLM) to control:
+### Character Creation
+- Generate unique character paths using the slot machine
+- Customize your character's name
+- Receive AI-generated character portraits
+- Get assigned random starting stats and equipment
 
-1. Character Generation
-   - Creates unique backstories from slot machine words
-   - Generates appropriate starting equipment
-   - Assigns initial missions based on character path
+### Stats System
+- **Health**: Physical and mental wellbeing
+- **Energy**: Required for actions
+- **Damage**: Offensive capabilities
+- **Defense**: Protective capabilities
+- **Core Stats**:
+  - Strength: Physical power
+  - Dexterity: Precision and skill
+  - Endurance: Stamina and resilience
+  - Agility: Speed and reflexes
+  - Wisdom: Decision making
+  - Charisma: Social interactions
 
-2. Story Progression
-   - Interprets player actions using special tags
-   - Controls inventory through [ADD_INV] and [REMOVE_INV] tags
-   - Manages stats with [STATS] tags
-   - Awards experience with [EXP] tags
-   - Updates coins using [COINS] tags
-   - Suggests next moves with [MOVES] tags
+### Dice Rolling System
+- 1-5: Critical failure
+- 6-10: Failure
+- 11-15: Partial success
+- 16-19: Success
+- 20: Critical success
 
-3. Dynamic Responses
-   - Considers character stats for outcomes
-   - Uses dice rolls for action resolution
-   - Maintains game state and context
-   - Provides contextual suggestions
-
-### Cloudflare Workers Setup
-
-The project requires a Cloudflare Worker to handle API requests. Here's how to set it up:
-
-1. Create a Cloudflare Worker:
-   ```bash
-   npm create cloudflare@latest
-   ```
-
-2. Configure Environment Variables:
-   - Go to your Worker's settings in Cloudflare Dashboard
-   - Add `REPLICATE_API_TOKEN` for image generation
-
-3. Deploy the Worker:
-   ```bash
-   npx wrangler deploy
-   ```
-
-4. Update the fetch URLs in your code to point to your Worker's URL
-
-The Worker handles:
-- LLM API requests for game responses
-- Image generation for character portraits
-- CORS and request forwarding
-- API key management
+### Animation System
+- Real-time character animations
+- Dynamic item tracking for both hands
+- Smooth transitions between animations
+- Visual feedback for actions
 
 ## Tech Stack
 
@@ -72,8 +57,7 @@ The Worker handles:
 - Tailwind CSS
 - Vite
 - Lucide Icons
-- Cloudflare Workers
-- Replicate API (for image generation)
+- Cloudflare Workers (for API)
 
 ## Getting Started
 
@@ -93,46 +77,47 @@ npm install
 npm run dev
 ```
 
-4. Set up your Cloudflare Worker (see Cloudflare Workers Setup section)
+4. Open [http://localhost:5173](http://localhost:5173) in your browser
 
-5. Update the API endpoints in your code to point to your Worker
+## Development
 
-6. Open [http://localhost:5173](http://localhost:5173) in your browser
+### Project Structure
+```
+src/
+├── components/      # React components
+├── hooks/          # Custom React hooks
+├── types/          # TypeScript type definitions
+├── data/          # Game data and configurations
+└── utils/         # Utility functions
+```
 
-## Game Mechanics
+### Key Components
 
-### Character Creation
-- Generate unique character paths using the slot machine
-- Customize your character's name
-- Receive AI-generated character portraits
-- Get assigned random starting stats and equipment
+- `GameUI`: Main game interface
+- `AnimationOverlay`: Handles character animations and item tracking
+- `Dice`: 3D dice rolling system
+- `SlotMachine`: Character path generation
+- `Onboarding`: Character creation flow
 
-### Core Stats
-- Health: Your physical and mental wellbeing
-- Energy: Required for actions
-- Damage: Your offensive capabilities
-- Defense: Your protective capabilities
-- Strength: Physical power
-- Dexterity: Precision and skill
-- Endurance: Stamina and resilience
-- Agility: Speed and reflexes
-- Luck: Random event outcomes
-- Charisma: Social interactions
+### Building
 
-### Gameplay
-- Roll dice to determine action outcomes
-- Manage inventory and equipment
-- Level up and distribute skill points
-- Complete missions and challenges
-- Navigate office politics
-- Make strategic decisions
+To create a production build:
 
-### Dice Rolling System
-- 1-5: Critical failure
-- 6-10: Failure
-- 11-15: Partial success
-- 16-19: Success
-- 20: Critical success
+```bash
+npm run build
+```
+
+The build output will be in the `dist/` directory.
+
+### Deployment
+
+The game is deployed on Netlify. To deploy your own instance:
+
+1. Fork this repository
+2. Connect your fork to Netlify
+3. Configure the build settings:
+   - Build command: `npm run build`
+   - Publish directory: `dist`
 
 ## Contributing
 
@@ -152,5 +137,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 3D rendering powered by [Three.js](https://threejs.org/)
 - Built with [Vite](https://vitejs.dev/) and [React](https://reactjs.org/)
 - Styled with [Tailwind CSS](https://tailwindcss.com/)
-- Image generation by [Replicate](https://replicate.com/)
-- Powered by Cloudflare Workers
+- Animations powered by [gifuct-js](https://github.com/matt-way/gifuct-js)
+- Deployed on [Netlify](https://www.netlify.com/)

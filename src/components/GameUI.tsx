@@ -2,6 +2,9 @@ import React from 'react';
 import { Heart, Zap, Star, Package, Coins, Sword, Shield, Bug, Box } from 'lucide-react';
 import { Status, Item, Message } from '../types';
 import { Dice } from './Dice';
+import { AnimationOverlay } from './AnimationOverlay';
+
+const WORKER_URL = 'https://tamagotchianimation.brancaskitchen.workers.dev';
 
 interface GameUIProps {
   messages: Message[];
@@ -23,6 +26,7 @@ interface GameUIProps {
     template: string;
     diceRoll?: number;
   };
+  selectedAnimation?: string | null;
   botResponse: string;
 }
 
@@ -42,6 +46,7 @@ export function GameUI({
   handlers,
   onSuggestionClick,
   currentRequest,
+  selectedAnimation,
   botResponse
 }: GameUIProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
@@ -51,7 +56,73 @@ export function GameUI({
   const [showRollMessage, setShowRollMessage] = React.useState(false);
   const [pendingSubmit, setPendingSubmit] = React.useState(false);
   const [hideCurrentMoves, setHideCurrentMoves] = React.useState(false);
+  const [leftHandItem, setLeftHandItem] = React.useState<Item | null>(null);
+  const [rightHandItem, setRightHandItem] = React.useState<Item | null>(null);
+  const [rightHandUrl, setRightHandUrl] = React.useState<string | null>(null);
+  const [leftHandUrl, setLeftHandUrl] = React.useState<string | null>(null);
+  const [isGeneratingItems, setIsGeneratingItems] = React.useState(false);
+
+  const generateItemImage = async (item: Item) => {
+    try {
+      const response = await fetch('https://tamagotchiitem.brancaskitchen.workers.dev', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prompt: `${item.name} on white background, single product` })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      return data.output?.[0] || null;
+    } catch (err) {
+      console.error('Failed to generate item image:', err);
+      return null;
+    }
+  };
+
+  // Update item URLs when items change
+  React.useEffect(() => {
+    if (leftHandItem) {
+      setIsGeneratingItems(true);
+      generateItemImage(leftHandItem).then(url => {
+        setLeftHandUrl(url);
+        setIsGeneratingItems(false);
+      });
+    } else {
+      setLeftHandUrl(null);
+    }
+  }, [leftHandItem]);
+
+  React.useEffect(() => {
+    if (rightHandItem) {
+      setIsGeneratingItems(true);
+      generateItemImage(rightHandItem).then(url => {
+        setRightHandUrl(url);
+        setIsGeneratingItems(false);
+      });
+    } else {
+      setRightHandUrl(null);
+    }
+  }, [rightHandItem]);
   const [diceDisabled, setDiceDisabled] = React.useState(false);
+  const [expNotification, setExpNotification] = React.useState<{ amount: number; timestamp: number } | null>(null);
+  const [expChangeTimestamp, setExpChangeTimestamp] = React.useState<number | null>(null);
+
+
+  // Watch for EXP changes in messages
+  React.useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && !lastMessage.isUser) {
+      const expMatch = botResponse.match(/\[EXP\](\d+)\[\/EXP\]/);
+      if (expMatch) {
+        const amount = parseInt(expMatch[1]);
+        setExpNotification({ amount, timestamp: Date.now() });
+        setExpChangeTimestamp(Date.now());
+        setTimeout(() => setExpNotification(null), 2000);
+        setTimeout(() => setExpChangeTimestamp(null), 2000);
+      }
+    }
+  }, [messages, botResponse]);
 
   React.useEffect(() => {
     if (pendingSubmit && currentRequest.diceRoll) {
@@ -143,10 +214,23 @@ export function GameUI({
                 </span>
                 <div className="whitespace-pre-wrap break-words">
                   {message.content
-                    .replace(/\[(MOVES|MV|MVES|STATS|DAMAGE|EXP|ENEMY)\].*?\[\/(?:MOVES|MV|MVES|STATS|DAMAGE|EXP|ENEMY)\]/g, '')
+                    .replace(/\[(MOVES|MV|MVES|STATS|DAMAGE|ENEMY)\].*?\[\/(?:MOVES|MV|MVES|STATS|DAMAGE|ENEMY)\]/g, '')
+                    .replace(/\[EXP\]\d+\[\/EXP\]/g, '')
                     .replace(/^\$\s*\$\s*/, '')
                     .replace(/^\$\s*/, '')
                     .trim()}
+                  {/* Show floating EXP notification */}
+                  {!message.isUser && expNotification && messages[messages.length - 1] === message && (
+                    <div 
+                      className="inline-block ml-2 text-white animate-fade-out"
+                      style={{
+                        animation: 'fadeOut 2s forwards',
+                        opacity: Math.max(0, 1 - (Date.now() - expNotification.timestamp) / 2000)
+                      }}
+                    >
+                      <span className="text-white">+{expNotification.amount} EXP</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -173,14 +257,14 @@ export function GameUI({
             <div className="mb-2 pb-2 border-b border-[#33ff33]/20">
               <div className="flex flex-wrap gap-2 justify-start">
                 {messages[messages.length - 1]?.suggestions ? (
-                  messages[messages.length - 1].suggestions.map((move, idx) => (
-                  <button
-                    key={messages[messages.length - 1].suggestions!.length - idx - 1}
-                    onClick={() => handleMoveClick(move)}
-                    className="text-sm px-3 py-1 border border-[#33ff33]/40 rounded hover:bg-[#33ff33]/10 transition-colors whitespace-nowrap max-w-full"
-                  >
-                    {messages[messages.length - 1].suggestions![messages[messages.length - 1].suggestions!.length - idx - 1]}
-                  </button>
+                  messages[messages.length - 1].suggestions.map((move) => (
+                    <button
+                      key={move}
+                      onClick={() => handleMoveClick(move)}
+                      className="text-sm px-3 py-1 border border-[#33ff33]/40 rounded hover:bg-[#33ff33]/10 transition-colors whitespace-nowrap max-w-full"
+                    >
+                      {move}
+                    </button>
                   ))
                 ) : null}
               </div>
@@ -220,20 +304,17 @@ export function GameUI({
               </div>
             </form>
           </div>
+        </div>
       </div>
-    </div>
 
       {/* Right Column - Status */}
-      <div className={`w-full md:w-1/4 p-4 flex flex-col border-r border-[#33ff33]/20 overflow-y-auto transition-all duration-300 ${showDebug ? '' : 'md:w-1/3 lg:w-1/4'}`}>
+      <div className={`w-full md:w-1/4 p-2 flex flex-col border-r border-[#33ff33]/20 overflow-y-auto transition-all duration-300 ${showDebug ? '' : 'md:w-1/3 lg:w-1/4'}`}>
         {/* Level */}
         {allStats.length > 0 && characterInfo && (
-          <div className="mb-4">
-            <div className="mb-3 flex items-center justify-between gap-4">
-              <div className="flex-1">
-                <h2 className="text-lg font-bold">{characterInfo.name}</h2>
-                <div className="text-sm opacity-80">Level {level.value} {characterInfo.type}</div>
-              </div>
-              <div className="w-16 h-16 rounded-sm border-2 border-[#33ff33] overflow-hidden flex-shrink-0">
+          <div className="mb-2">
+            <div className="flex items-start gap-4">
+              {/* Character Image */}
+              <div className="w-32 h-32 rounded-sm border-2 border-[#33ff33] overflow-hidden flex-shrink-0">
                 {characterInfo.profileImage ? (
                   <img 
                     src={characterInfo.profileImage} 
@@ -246,96 +327,141 @@ export function GameUI({
                   </div>
                 )}
               </div>
-            </div>
-            <div className="text-xs text-center mt-1 opacity-70">
-              EXP: {level.exp || 0}/{level.maxExp || 100}
-            </div>
-            <div className="w-full bg-[#33ff33]/20 rounded-full h-2 mt-1">
-              <div
-                className="bg-[#33ff33] h-2 rounded-full transition-all duration-300"
-                style={{ width: `${((level.exp || 0) / (level.maxExp || 100)) * 100}%` }}
-              />
+              {/* Character Info */}
+              <div className="flex-1">
+                <h2 className="text-lg font-bold">{characterInfo.name}</h2>
+                <div className="text-sm opacity-80">Level {level.value} {characterInfo.type}</div>
+                <div className="text-xs opacity-70 mt-1">
+                  EXP: {level.exp || 0}/{level.maxExp || 100}
+                </div>
+                <div className="w-full bg-[#33ff33]/20 rounded-full h-1.5 mt-1">
+                  <div
+                    className="h-1.5 rounded-full transition-all duration-300 flex"
+                  >
+                    <div 
+                      className={`h-full transition-all duration-300 ${
+                        expChangeTimestamp && Date.now() - expChangeTimestamp < 2000
+                          ? 'bg-gray-300'
+                          : 'bg-[#33ff33]'
+                      }`}
+                      style={{ 
+                        width: `${((level.exp || 0) / (level.maxExp || 100)) * 100}%` 
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
 
         {/* Vital Stats */}
         {vitals.length > 0 && (
-          <div className="space-y-3 mb-4">
-            {/* Health and Energy */}
-            {vitals.slice(0, 2).map((status, index) => (
-              <div key={index} className="flex flex-col space-y-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {status.icon}
-                    <span className="uppercase text-sm">{status.name}</span>
-                    {status.change && (
-                      <span className={`text-xs ${status.change > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {status.change > 0 ? '↑' : '↓'} {Math.abs(status.change)}
+          <div className="flex gap-4 mb-2">
+            <div className="flex-1">
+              <div className="space-y-2">
+                {/* Health and Energy */}
+                {vitals.slice(0, 2).map((status, index) => (
+                  <div key={index} className="flex flex-col space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {status.icon}
+                        <span className="uppercase text-sm">{status.name}</span>
+                        {status.change && (
+                          <span className={`text-xs ${status.change > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {status.change > 0 ? '↑' : '↓'} {Math.abs(status.change)}
+                          </span>
+                        )}
+                      </div>
+                      <span className="text-sm">
+                        {status.value}/{status.maxValue || status.value}
                       </span>
-                    )}
+                    </div>
+                    <div className="w-full bg-[#33ff33]/20 rounded-full h-1.5">
+                      <div
+                        className="h-1.5 rounded-full transition-all duration-300 flex"
+                      >
+                        {/* Base value bar */}
+                        <div 
+                          className="h-full bg-[#33ff33] transition-all duration-300"
+                          style={{ 
+                            width: `${((status.value - (status.change || 0)) / (status.maxValue || status.value)) * 100}%` 
+                          }}
+                        />
+                        {/* Change indicator */}
+                        {status.change && (
+                          <div 
+                            className={`h-full transition-all duration-300 ${
+                              status.change > 0 ? 'bg-gray-300' : 'bg-orange-500'
+                            }`}
+                            style={{ 
+                              width: `${(Math.abs(status.change) / (status.maxValue || status.value)) * 100}%`
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  <span className="text-sm">
-                    {status.value}/{status.maxValue || status.value}
-                  </span>
-                </div>
-                <div className="w-full bg-[#33ff33]/20 rounded-full h-2">
-                  <div
-                    className="bg-[#33ff33] h-2 rounded-full transition-all duration-300"
-                    style={{ width: `${(status.value / (status.maxValue || status.value)) * 100}%` }}
-                  />
+                ))}
+
+                {/* Combat Stats */}
+                <div className="flex gap-4 mt-4">
+                  <div className="flex-1 border border-[#33ff33] rounded p-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sword className="w-4 h-4" />
+                        <span className="text-sm">DMG</span>
+                      </div>
+                      <span className="text-base font-bold">
+                        {(vitals[2]?.value || 0) + (inventory.find(i => i.type === 'weapon')?.value || 0)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex-1 border border-[#33ff33] rounded p-1.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Shield className="w-4 h-4" />
+                        <span className="text-sm">DEF</span>
+                      </div>
+                      <span className="text-base font-bold">
+                        {(vitals[3]?.value || 0) + (inventory.find(i => i.type === 'armor')?.value || 0)}
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
-            ))}
-            {/* Combat Stats */}
-            <div className="flex gap-4">
-              <div className="flex-1 border border-[#33ff33] rounded p-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Sword className="w-4 h-4" />
-                    <span className="text-sm">DMG</span>
-                  </div>
-                  <span className="text-lg font-bold">
-                    {(vitals[2]?.value || 0) + (inventory.find(i => i.type === 'weapon')?.value || 0)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex-1 border border-[#33ff33] rounded p-2">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4" />
-                    <span className="text-sm">DEF</span>
-                  </div>
-                  <span className="text-lg font-bold">
-                    {(vitals[3]?.value || 0) + (inventory.find(i => i.type === 'armor')?.value || 0)}
-                  </span>
-                </div>
-              </div>
+            </div>
+            
+            {/* Second Image Container */}
+            <div className="w-32 h-32 rounded-sm border-2 border-[#33ff33] overflow-hidden flex-shrink-0">
+              <AnimationOverlay
+                selectedAnimation={selectedAnimation ? 
+                  `${WORKER_URL}/file/${selectedAnimation}` : 
+                  `${WORKER_URL}/file/Animations/Walking3.gif`
+                }
+                leftHandUrl={leftHandUrl}
+                rightHandUrl={rightHandUrl}
+                isGenerating={isGeneratingItems}
+              />
             </div>
           </div>
         )}
 
         {/* RPG Stats */}
         {stats.length > 0 && (
-          <div className="border-t border-[#33ff33]/20 pt-3 mb-4">
-            <h2 className="text-sm uppercase mb-4 opacity-80">Character Stats</h2>
-            <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+          <div className="border-t border-[#33ff33]/20 pt-2 mb-2">
+            <h2 className="text-xs uppercase mb-4 opacity-80">Character Stats</h2>
+            <div className="grid grid-cols-3 grid-rows-2 gap-4">
               {stats.map((stat, index) => (
                 <div key={index} className="flex items-center gap-2">
                   <div className="flex items-center gap-3 w-full">
                     <div className="flex items-center gap-2">
                       {stat.icon}
                       <span className="text-xs uppercase opacity-80">
-                        {stat.name === 'Strength' ? 'STR' :
-                         stat.name === 'Dexterity' ? 'DEX' :
-                         stat.name === 'Endurance' ? 'END' :
-                         stat.name === 'Agility' ? 'AGI' :
-                         stat.name === 'Luck' ? 'LCK' :
-                         stat.name === 'Charisma' ? 'CHR' :
-                         stat.name}
+                        {stat.name === 'Strength' ? 'STR' : stat.name === 'Dexterity' ? 'DEX' : stat.name === 'Endurance' ? 'END' : stat.name === 'Agility' ? 'AGI' : stat.name === 'Wisdom' ? 'WIS' : stat.name === 'Charisma' ? 'CHR' : stat.name}
                       </span>
                     </div>
-                    <div className="flex items-center gap-1 ml-auto">
+                    <div className="flex items-center gap-1">
                       {(() => {
                         const itemBonus = inventory
                           .filter(item => item.statBonus?.stat.toLowerCase() === stat.name.toLowerCase())
@@ -343,7 +469,7 @@ export function GameUI({
                         
                         return (
                           <div className="flex items-center gap-1">
-                            <span className="text-lg font-bold">{stat.value}</span>
+                            <span className="text-lg font-bold w-6 text-left">{stat.value}</span>
                             {itemBonus > 0 && (
                               <span className="text-sm text-blue-400">+{itemBonus}</span>
                             )}
@@ -365,11 +491,11 @@ export function GameUI({
 
         {/* Inventory */}
         {allStats.length > 0 && (
-          <div className="border-t border-[#33ff33]/20 pt-3 mb-4">
+          <div className="border-t border-[#33ff33]/20 pt-2 mb-2">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4" />
-                <h2 className="text-sm uppercase opacity-80">Inventory</h2>
+                <h2 className="text-xs uppercase opacity-80">Inventory</h2>
               </div>
               <div className="flex items-center gap-1 text-[#ffd700]">
                 <Coins className="w-4 h-4" />
@@ -379,7 +505,28 @@ export function GameUI({
             <div className="space-y-2">
               {inventory.map((item, index) => (
                 <div key={index} className="text-sm flex items-center justify-between">
-                  <div className="flex items-center gap-2 flex-1">
+                  <div 
+                    className={`flex items-center gap-2 flex-1 ${
+                      'cursor-pointer hover:bg-[#33ff33]/10 px-2 py-1 rounded transition-colors'
+                    }`}
+                    onClick={() => {
+                      if (!leftHandItem) {
+                        setLeftHandItem(item);
+                      } else if (!rightHandItem) {
+                        setRightHandItem(item);
+                      } else {
+                        // Cycle through: right hand -> left hand -> unequip
+                        if (rightHandItem === item) {
+                          setRightHandItem(null);
+                          setLeftHandItem(item);
+                        } else if (leftHandItem === item) {
+                          setLeftHandItem(null);
+                        } else {
+                          setRightHandItem(item);
+                        }
+                      }
+                    }}
+                  >
                     <span className="w-4 flex items-center">
                       {item.type === 'weapon' && <Sword className="w-3 h-3" />}
                       {item.type === 'armor' && <Shield className="w-3 h-3" />}
@@ -388,13 +535,19 @@ export function GameUI({
                       {item.type === 'coins' && <Coins className="w-3 h-3" />}
                       {item.type === 'item' && <Package className="w-3 h-3" />}
                     </span>
-                    <span className={`${
+                    <span className={`transition-colors duration-300 ${
                       item.rarity === 'legendary' ? 'text-[#ffd700]' :
                       item.rarity === 'epic' ? 'text-purple-400' :
                       item.rarity === 'rare' ? 'text-blue-400' :
-                      item.rarity === 'uncommon' ? 'text-green-400' :
-                      'text-gray-200'
+                      item.rarity === 'uncommon' ? 'text-[#33ff33]' :
+                      'text-[#33ff33]'
                     } truncate`}>{item.name.split('|')[0].trim()}</span>
+                    {item === leftHandItem && (
+                      <span className="ml-1 text-xs opacity-70">(L)</span>
+                    )}
+                    {item === rightHandItem && (
+                      <span className="ml-1 text-xs opacity-70">(R)</span>
+                    )}
                   </div>
                   <div className="text-xs opacity-70 text-right">
                     {item.type === 'weapon' && `+${item.value} DMG`}

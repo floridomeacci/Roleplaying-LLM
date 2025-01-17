@@ -145,10 +145,10 @@ export function generateCharacter(): Status[] {
       key: 'agility'
     },
     {
-      name: 'Luck',
+      name: 'Wisdom',
       value: statValues[4],
       icon: React.createElement(Star, { className: "w-4 h-4" }),
-      key: 'luck'
+      key: 'wisdom'
     },
     {
       name: 'Charisma',

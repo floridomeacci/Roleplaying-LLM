@@ -62,6 +62,7 @@ function App() {
         onSuggestionClick={(suggestion) => handlers.setInput(suggestion)}
         handlers={handlers}
         currentRequest={state.currentRequest}
+        selectedAnimation={state.selectedAnimation}
         botResponse={state.botResponse}
       />
     </div>

@@ -14,6 +14,7 @@ export default {
     const corsHeaders = {
       "Access-Control-Allow-Origin": "*",
       "Content-Type": "application/json",
+      "Access-Control-Allow-Headers": "Content-Type",
     };
 
     try {
@@ -24,12 +25,52 @@ export default {
         throw new Error('Replicate API token not configured');
       }
 
+      // Handle root path for profile image generation
+      if (url.pathname === '/') {
+        if (request.method === 'POST') {
+          const body = await request.json();
+          
+          const replicateRequest = new Request('https://api.replicate.com/v1/predictions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Token ${replicateApiKey}`,
+              'Content-Type': 'application/json',
+              'Prefer': 'wait'
+            },
+            body: JSON.stringify({
+              version: "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
+              input: {
+                prompt: body.prompt,
+                width: body.width || 1024,
+                height: body.height || 1024,
+                scheduler: body.scheduler || "K_EULER",
+                num_outputs: body.num_outputs || 1,
+                guidance_scale: body.guidance_scale || 0,
+                negative_prompt: body.negative_prompt || "worst quality, low quality, nsfw, nude, naked, suggestive, inappropriate, adult content, explicit content, violence, gore, blood, disturbing content, offensive content, underwear, swimsuit, bikini, lingerie, cleavage, revealing clothing, sexually suggestive, inappropriate poses",
+                num_inference_steps: body.num_inference_steps || 4
+              }
+            })
+          });
+
+          const response = await fetch(replicateRequest);
+          const data = await response.json();
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          return new Response(JSON.stringify(data), {
+            headers: corsHeaders
+          });
+        }
+      }
+
       // Original API endpoint
       if (url.pathname.startsWith('/api/predictions')) {
         const replicateUrl = url.pathname === '/api/predictions' 
           ? 'https://api.replicate.com/v1/predictions'
           : `https://api.replicate.com/v1/predictions/${url.pathname.split('/').pop()}`;
-
+      
         let replicateRequest;
         if (request.method === 'POST') {
           const body = await request.json();
@@ -39,8 +80,12 @@ export default {
             headers: {
               'Authorization': `Token ${replicateApiKey}`,
               'Content-Type': 'application/json',
+              'Prefer': 'wait'
             },
-            body: JSON.stringify(body),
+            body: JSON.stringify({
+              version: "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
+              input: body
+            }),
           });
         } else {
           replicateRequest = new Request(replicateUrl, {
@@ -65,7 +110,7 @@ export default {
 
       // Recraft API endpoint
       if (url.pathname.startsWith('/api/recraft/predictions')) {
-        const replicateUrl = 'https://api.replicate.com/v1/models/recraft-ai/recraft-v3/predictions';
+        const replicateUrl = 'https://api.replicate.com/v1/predictions';
 
         let replicateRequest;
         if (request.method === 'POST') {
@@ -76,12 +121,19 @@ export default {
             headers: {
               'Authorization': `Token ${replicateApiKey}`,
               'Content-Type': 'application/json',
+              'Prefer': 'wait'
             },
             body: JSON.stringify({
+              version: "5599ed30703defd1d160a25a63321b4dec97101d98b4674bcc56e41f62f35637",
               input: {
                 prompt: body.input.prompt,
-                size: body.input.size || "1365x1024",
-                style: "any"
+                width: body.input.width || 1024,
+                height: body.input.height || 1024,
+                scheduler: body.input.scheduler || "K_EULER",
+                num_outputs: body.input.num_outputs || 1,
+                guidance_scale: body.input.guidance_scale || 0,
+                negative_prompt: body.input.negative_prompt || "worst quality, low quality, nsfw, nude, naked, suggestive, inappropriate, adult content, explicit content, violence, gore, blood, disturbing content, offensive content, underwear, swimsuit, bikini, lingerie, cleavage, revealing clothing, sexually suggestive, inappropriate poses",
+                num_inference_steps: body.input.num_inference_steps || 4
               }
             }),
           });

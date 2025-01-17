@@ -4,7 +4,7 @@ import { Status, Item, Message } from '../types';
 import { Dice } from './Dice';
 import { AnimationOverlay } from './AnimationOverlay';
 
-const WORKER_URL = 'https://tamagotchianimation.brancaskitchen.workers.dev';
+import { WORKER_URLS } from '../constants';
 
 interface GameUIProps {
   messages: Message[];
@@ -61,19 +61,104 @@ export function GameUI({
   const [rightHandUrl, setRightHandUrl] = React.useState<string | null>(null);
   const [leftHandUrl, setLeftHandUrl] = React.useState<string | null>(null);
   const [isGeneratingItems, setIsGeneratingItems] = React.useState(false);
+  const [summaryImages, setSummaryImages] = React.useState<Map<number, string>>(new Map());
+  const [isGeneratingSummary, setIsGeneratingSummary] = React.useState(false);
+  const itemImageCache = React.useRef<Map<string, string>>(new Map());
+  const maxRetries = 3;
 
-  const generateItemImage = async (item: Item) => {
+  const generateImage = async (prompt: string, retryCount = 0): Promise<string | null> => {
+    if (messages.length < 3) return;
+    
     try {
-      const response = await fetch('https://tamagotchiitem.brancaskitchen.workers.dev', {
+      const response = await fetch('https://tamagotchipfp.brancaskitchen.workers.dev', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ prompt: `${item.name} on white background, single product` })
+        body: JSON.stringify({
+          prompt,
+          width: 1024,
+          height: 1024,
+          scheduler: "K_EULER",
+          num_outputs: 1,
+          guidance_scale: 0,
+          negative_prompt: "worst quality, low quality, realistic, photorealistic, photograph, western art style",
+          num_inference_steps: 4
+        })
       });
+
       const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      return data.output?.[0] || null;
+      if (data.error) {
+        throw new Error(data.error);
+      }
+      
+      if (!data.output?.[0]) {
+        throw new Error('No image URL in response');
+      }
+      
+      return data.output[0];
+      
+    } catch (err) {
+      console.error(`Image generation attempt ${retryCount + 1} failed:`, err);
+      if (retryCount < maxRetries - 1) {
+        console.log('Retrying image generation...');
+        return generateImage(prompt, retryCount + 1);
+      }
+      return null;
+    }
+  };
+
+  // Generate summary image for last 3 messages
+  const generateSummaryImage = async (messages: Message[]) => {
+    if (messages.length < 3) return;
+    
+    setIsGeneratingSummary(true);
+    const messageIndex = messages.length - 1;
+    
+    try {
+      const lastThreeMessages = messages.slice(-3)
+        .map(m => {
+          const messageMatch = m.content.match(/\[MESSAGE\]([\s\S]*?)\[\/MESSAGE\]/);
+          return m.isUser ? m.content.trim() : (messageMatch ? messageMatch[1].trim() : m.content.trim());
+        })
+        .join(' | ');
+
+      const characterDesc = characterInfo?.description 
+        ? `${characterInfo.description.gender} ${characterInfo.description.type} with ${characterInfo.description.look}` 
+        : '';
+
+      const imagePrompt = `anime illustration of ${characterDesc} in the following scene: ${lastThreeMessages}, high quality anime art style, studio ghibli inspired, detailed background`;
+
+      const imageUrl = await generateImage(imagePrompt);
+      if (imageUrl) {
+        setSummaryImages(prev => new Map(prev).set(messageIndex, imageUrl));
+      }
+    } finally {
+      setIsGeneratingSummary(false);
+    }
+  };
+
+  // Check for every third message
+  React.useEffect(() => {
+    if (messages.length > 0 && messages.length % 3 === 0 && !messages[messages.length - 1].isSystem) {
+      generateSummaryImage(messages);
+    }
+  }, [messages.length]);
+
+  const generateItemImage = async (item: Item) => {
+    const cachedUrl = itemImageCache.current.get(item.name);
+    if (cachedUrl) {
+      return cachedUrl;
+    }
+
+    try {
+      const imageUrl = await generateImage(`${item.name} on white background, single product`);
+      
+      if (imageUrl) {
+        itemImageCache.current.set(item.name, imageUrl);
+      }
+      
+      return imageUrl;
     } catch (err) {
       console.error('Failed to generate item image:', err);
       return null;
@@ -208,29 +293,55 @@ export function GameUI({
                     : 'text-[#33ff33]'
               }`}
             >
-              <div className="flex items-start gap-2 break-words max-w-full">
+              <div className="flex items-start gap-2 break-words w-full">
                 <span className="select-none">
                   {message.isSystem ? '⚡' : message.isUser ? '>' : '$'}
                 </span>
-                <div className="whitespace-pre-wrap break-words">
-                  {message.content
-                    .replace(/\[(MOVES|MV|MVES|STATS|DAMAGE|ENEMY)\].*?\[\/(?:MOVES|MV|MVES|STATS|DAMAGE|ENEMY)\]/g, '')
-                    .replace(/\[EXP\]\d+\[\/EXP\]/g, '')
-                    .replace(/^\$\s*\$\s*/, '')
-                    .replace(/^\$\s*/, '')
-                    .trim()}
-                  {/* Show floating EXP notification */}
-                  {!message.isUser && expNotification && messages[messages.length - 1] === message && (
-                    <div 
-                      className="inline-block ml-2 text-white animate-fade-out"
-                      style={{
-                        animation: 'fadeOut 2s forwards',
-                        opacity: Math.max(0, 1 - (Date.now() - expNotification.timestamp) / 2000)
-                      }}
-                    >
-                      <span className="text-white">+{expNotification.amount} EXP</span>
+                <div className="flex flex-col w-full">
+                  {/* Message content */}
+                  <div className="flex gap-4 w-full">
+                    {/* Show summary image only for bot responses */}
+                    {!message.isUser && (index + 1) % 3 === 0 && (
+                      <div className="w-32 h-32 rounded-lg overflow-hidden flex-shrink-0 bg-black/20">
+                        <img 
+                          src={summaryImages.get(index)} 
+                          alt="Chat summary"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            // Hide broken images
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                        {isGeneratingSummary && index === messages.length - 1 && (
+                          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-[#33ff33]" />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Message text */}
+                    <div className="whitespace-pre-wrap break-words flex-1">
+                      {message.content
+                        .replace(/\[(MOVES|MV|MVES|STATS|DAMAGE|ENEMY)\].*?\[\/(?:MOVES|MV|MVES|STATS|DAMAGE|ENEMY)\]/g, '')
+                        .replace(/\[EXP\]\d+\[\/EXP\]/g, '')
+                        .replace(/^\$\s*\$\s*/, '')
+                        .replace(/^\$\s*/, '')
+                        .trim()}
+                      {/* Show floating EXP notification */}
+                      {!message.isUser && expNotification && messages[messages.length - 1] === message && (
+                        <div 
+                          className="inline-block ml-2 text-white animate-fade-out"
+                          style={{
+                            animation: 'fadeOut 2s forwards',
+                            opacity: Math.max(0, 1 - (Date.now() - expNotification.timestamp) / 2000)
+                          }}
+                        >
+                          <span className="text-white">+{expNotification.amount} EXP</span>
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -436,8 +547,8 @@ export function GameUI({
             <div className="w-32 h-32 rounded-sm border-2 border-[#33ff33] overflow-hidden flex-shrink-0">
               <AnimationOverlay
                 selectedAnimation={selectedAnimation ? 
-                  `${WORKER_URL}/file/${selectedAnimation}` : 
-                  `${WORKER_URL}/file/Animations/Walking3.gif`
+                  `${WORKER_URLS.ANIMATION}/file/${selectedAnimation}` : 
+                  `${WORKER_URLS.ANIMATION}/file/Animations/Looking.gif`
                 }
                 leftHandUrl={leftHandUrl}
                 rightHandUrl={rightHandUrl}
@@ -510,20 +621,25 @@ export function GameUI({
                       'cursor-pointer hover:bg-[#33ff33]/10 px-2 py-1 rounded transition-colors'
                     }`}
                     onClick={() => {
-                      if (!leftHandItem) {
-                        setLeftHandItem(item);
-                      } else if (!rightHandItem) {
-                        setRightHandItem(item);
-                      } else {
-                        // Cycle through: right hand -> left hand -> unequip
+                      // If item is already equipped in either hand, unequip it
+                      if (leftHandItem === item) {
+                        setLeftHandItem(null);
+                      } else if (rightHandItem === item) {
+                        setRightHandItem(null);
+                      } else if (!leftHandItem) {
+                        // If item is not equipped and left hand is empty, equip to left hand
+                        // First unequip from right hand if it's equipped there
                         if (rightHandItem === item) {
                           setRightHandItem(null);
-                          setLeftHandItem(item);
-                        } else if (leftHandItem === item) {
-                          setLeftHandItem(null);
-                        } else {
-                          setRightHandItem(item);
                         }
+                        setLeftHandItem(item);
+                      } else if (!rightHandItem) {
+                        // If item is not equipped and right hand is empty, equip to right hand
+                        // First unequip from left hand if it's equipped there
+                        if (leftHandItem === item) {
+                          setLeftHandItem(null);
+                        }
+                        setRightHandItem(item);
                       }
                     }}
                   >
@@ -602,8 +718,7 @@ prompt_template: "${currentRequest.template}"` : '(no input)'}
             <div className="w-full overflow-y-auto text-xs font-mono whitespace-pre-wrap break-words opacity-80">
               <strong className="text-[#ffd700]">Image Request:</strong>
               <pre className="mt-1 text-[#33ff33]/70 h-[calc((100vh-18rem)/3)] overflow-y-auto whitespace-pre-wrap break-all">
-                {characterInfo?.profileImage ? `prompt: "professional corporate headshot portrait of a ${characterInfo.type.toLowerCase()} in an office setting, wearing business attire, high quality, 4k, realistic"
-output: "${characterInfo.profileImage}"` : '(no image request)'}
+                {currentRequest.imageRequest ? JSON.stringify(currentRequest.imageRequest, null, 2) : '(no image request)'}
               </pre>
             </div>
             <div className="w-full overflow-y-auto text-xs font-mono whitespace-pre-wrap break-words opacity-80">

@@ -15,6 +15,7 @@ interface SlotMachineProps {
 export function SlotMachine({ onComplete, onSpinStart, onSpinEnd }: SlotMachineProps) {
   const [spinning, setSpinning] = useState(false);
   const [result, setResult] = useState<string[]>(['?', '?', '?', '?']);
+  const [isButtonLocked, setIsButtonLocked] = useState(false);
   const [showFlash, setShowFlash] = useState(false);
   const spinTimeouts = useRef<NodeJS.Timeout[]>([]);
   const finalWords = useRef<string[]>([]);
@@ -59,7 +60,10 @@ export function SlotMachine({ onComplete, onSpinStart, onSpinEnd }: SlotMachineP
   };
 
   const spin = () => {
-    if (spinning) return;
+    if (spinning || isButtonLocked) return;
+    
+    // Lock the button permanently
+    setIsButtonLocked(true);
     onSpinStart?.();
     
     // Get random words for final result
@@ -106,10 +110,14 @@ export function SlotMachine({ onComplete, onSpinStart, onSpinEnd }: SlotMachineP
       
       <button
         onClick={spin}
-        disabled={spinning}
-        className="px-6 py-2 border border-[#33ff33] rounded hover:bg-[#33ff33]/10 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        disabled={spinning || isButtonLocked}
+        className={`px-6 py-2 border border-[#33ff33] rounded transition-colors ${
+          spinning || isButtonLocked 
+            ? 'opacity-50 cursor-not-allowed bg-[#33ff33]/5' 
+            : 'hover:bg-[#33ff33]/10'
+        }`}
       >
-        {spinning ? 'Spinning...' : 'Pull the Lever'}
+        {spinning ? 'Spinning...' : isButtonLocked ? 'Lever Pulled' : 'Pull the Lever'}
       </button>
     </div>
   );

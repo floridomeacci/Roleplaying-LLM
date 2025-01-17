@@ -343,20 +343,26 @@ export function useGameState() {
     return null;
   };
 
+  const [isLoadingAnimations, setIsLoadingAnimations] = React.useState(false);
+
   // Fetch animations list on mount
   React.useEffect(() => {
     async function fetchAnimations() {
+      setIsLoadingAnimations(true);
       try {
         const response = await fetch('https://tamagotchianimation.brancaskitchen.workers.dev/list');
         const data = await response.json();
         if (data.files) {
           const animations = data.files
+            .filter(file => file.name.startsWith('Animations/'))
             .map(file => file.name.replace('Animations/', '').replace('.gif', ''))
             .sort();
           setState(prev => ({ ...prev, animations }));
         }
       } catch (error) {
         console.error('Error fetching animations:', error);
+      } finally {
+        setIsLoadingAnimations(false);
       }
     }
     fetchAnimations();
@@ -400,15 +406,35 @@ export function useGameState() {
       return acc;
     }, {} as Record<string, number>);
 
+    // Add animations list to prompt template
+    const animationsList = state.animations.length > 0 
+      ? `Select an animation from the following list that best matches the action or situation:\n${state.animations.join(', ')}`
+      : 'Animation list not available';
+
     const promptTemplate = `<|begin_of_text|><|start_header_id|>system<|end_header_id|>
 
 You are a character in an RPG game. Keep responses concise and use natural, conversational language. You MUST track and update all character stats appropriately.
 
-Select an animation from the following list that best matches the action or situation:
-Backflip, Boxing, Dancing, Dancing2, DancingTwerk, Death, Death2, Death3, Death4, Drinking, Driving, Fighting, FistFight, Kicking, LookAround, Looking, ReadyToFight, Shooting, StandingUp, Swimming, Talking, Talking2, TalkingOnACellPhone, WalkWithRifle, Walking, Walking2, WithdrawingSword, Yelling
+${animationsList}
 
 CRITICAL: You MUST include an [ANIMATION] tag with your selected animation in your response.
 Example: [ANIMATION]Walking[/ANIMATION]
+
+CRITICAL: You MUST include a [SUBJECT] tag to indicate what the message is about:
+- [SUBJECT]character|description[/SUBJECT] - For main character actions
+  Example: [SUBJECT]character|male office worker, brown hair, blue suit[/SUBJECT]
+
+- [SUBJECT]npc|role|description[/SUBJECT] - For new characters
+  Example: [SUBJECT]npc|secretary|female, blonde, red dress, glasses[/SUBJECT]
+
+- [SUBJECT]enemy|type|description[/SUBJECT] - For hostile encounters
+  Example: [SUBJECT]enemy|rival|tall male executive, black suit, angry expression[/SUBJECT]
+
+- [SUBJECT]object|type|description[/SUBJECT] - For items/objects
+  Example: [SUBJECT]object|laptop|silver MacBook Pro with stickers[/SUBJECT]
+
+- [SUBJECT]scene|type|description[/SUBJECT] - For locations
+  Example: [SUBJECT]scene|office|modern open plan office with glass walls[/SUBJECT]
 
 CRITICAL: You MUST wrap the main message that should appear in the terminal with [MESSAGE] and [/MESSAGE] tags.
 Example: [MESSAGE]You enter the dark cave. The air is damp and cold.[/MESSAGE]
@@ -481,11 +507,11 @@ Coins: ${state.coins}C
 Previous context: ${state.messages.slice(-3).map(m => m.content).join(' | ')}
 
 Example responses:
-1. Taking damage, can be emotional damage as well: "Someone hits you! [STATS]health -5[/STATS]"
-2. Using energy: "You walk to the kitchen. [STATS]energy -2[/STATS]"
-3. Breaking item: "Your computer breaks! [REMOVE_INV]Wooden Shield[/REMOVE_INV]"
-4. Gaining experience: "You got Liza fired! [EXP]25[/EXP]"
-5. Multiple changes: "You find a healing potion and use it immediately! [ADD_INV]Healing Potion|item|15|1[/ADD_INV] [STATS]health +15[/STATS] [REMOVE_INV]Healing Potion[/REMOVE_INV]"
+1. Taking damage: "[SUBJECT]enemy|karen|angry middle-aged woman, blonde bob cut, designer purse[/SUBJECT][MESSAGE]A wild Karen appears and hits you with her purse! [STATS]health -5[/STATS][/MESSAGE]"
+2. Using energy: "[SUBJECT]character|${state.characterInfo?.description?.gender || ''} ${state.characterInfo?.description?.type || ''}, ${state.characterInfo?.description?.look || ''}[/SUBJECT][MESSAGE]You walk to the kitchen. [STATS]energy -2[/STATS][/MESSAGE]"
+3. Breaking item: "[SUBJECT]object|computer|broken laptop with cracked screen[/SUBJECT][MESSAGE]Your computer breaks! [REMOVE_INV]Wooden Shield[/REMOVE_INV][/MESSAGE]"
+4. Meeting someone: "[SUBJECT]npc|accountant|nervous man in wrinkled suit, sweating[/SUBJECT][MESSAGE]You meet Bob from accounting. He seems nervous.[/MESSAGE]"
+5. Finding items: "[SUBJECT]object|potion|glowing blue healing potion in crystal vial[/SUBJECT][MESSAGE]You find a healing potion and use it immediately! [ADD_INV]Healing Potion|item|15|1[/ADD_INV] [STATS]health +15[/STATS] [REMOVE_INV]Healing Potion[/REMOVE_INV][/MESSAGE]"
 
 Remember:
 1. ALWAYS use proper tags for ANY changes
@@ -691,64 +717,75 @@ Defense: ${generatedStats.find(s => s.key === 'defense')?.value}`;
       const lookMatch = output.match(/\[LOOK\](.*?)\[\/LOOK\]/);
       const movesMatch = output.match(/\[MOVES\](.*?)\[\/MOVES\]/);
       
-      // Generate profile image based on character
-      let profileImage = '';
-      try {
-        const type = typeMatch ? typeMatch[1].toLowerCase().replace(/[^a-z\s]/g, '') : '';
-        const gender = genderMatch ? genderMatch[1].toLowerCase().replace(/[^a-z\s]/g, '') : '';
-        const look = lookMatch ? lookMatch[1].replace(/[^a-z\s,]/g, '') : '';
-        const prompt = `a headshot portrait photo of a ${gender} ${type}, ${look}, high quality, 4k, realistic, detailed, cinematic lighting, photography`;
+      // Build character description for consistent image generation
+      const characterDescription = {
+        type: typeMatch ? typeMatch[1].toLowerCase().replace(/[^a-z\s]/g, '') : '',
+        gender: genderMatch ? genderMatch[1].toLowerCase().replace(/[^a-z\s]/g, '') : '',
+        look: lookMatch ? lookMatch[1].replace(/[^a-z\s,]/g, '') : ''
+      };
+      
+      // Profile image generation with retry logic
+      const generateProfileImage = async (retryCount = 0): Promise<string> => {
+        const characterPrompt = `anime style portrait of a ${characterDescription.gender} ${characterDescription.type}, ${characterDescription.look}, high quality, detailed anime art style, studio ghibli inspired`;
 
-        const response = await fetch('https://productai.brancaskitchen.workers.dev/api/recraft/predictions', {
+        const profileImageRequest = {
+          prompt: `professional corporate headshot portrait of a ${characterDescription.gender} ${characterDescription.type}, ${characterDescription.look}, wearing business attire, high quality, 4k, realistic`,
+          width: 1024,
+          height: 1024,
+          scheduler: "K_EULER",
+          num_outputs: 1,
+          guidance_scale: 0,
+          negative_prompt: "worst quality, low quality, realistic, photorealistic, photograph, western art style, nsfw, nude, naked, suggestive, inappropriate, adult content, explicit content, violence, gore, blood, disturbing content, offensive content, underwear, swimsuit, bikini, lingerie, cleavage, revealing clothing, sexually suggestive, inappropriate poses",
+          num_inference_steps: 4
+        };
+        
+        // Update the prompt to anime style
+        profileImageRequest.prompt = characterPrompt;
+        
+        setState(prev => ({
+          ...prev,
+          currentRequest: {
+            ...prev.currentRequest,
+            imageRequest: profileImageRequest
+          }
+        }));
+
+        const response = await fetch('https://tamagotchipfp.brancaskitchen.workers.dev', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({
-            input: {
-              prompt,
-              negative_prompt: "cartoon, anime, illustration, painting, drawing, 3d, cgi, watermark, signature, blurry, distorted, deformed, low quality, bad quality, text, multiple people, group photo",
-              width: 512,
-              height: 512,
-              guidance_scale: 8.5,
-              num_inference_steps: 75,
-              seed: Math.floor(Math.random() * 1000000)
-            }
-          })
+          body: JSON.stringify(profileImageRequest)
         });
 
-        const data = await response.json();
-        
-        if (data.id) {
-          // Poll for the result
-          let result;
-          let attempts = 0;
-          const maxAttempts = 30; // 30 seconds timeout
-
-          while (!result) {
-            if (attempts >= maxAttempts) {
-              console.error('Image generation timed out');
-              break;
-            }
-
-            const statusResponse = await fetch(`https://productai.brancaskitchen.workers.dev/api/recraft/predictions/${data.id}`);
-            const statusData = await statusResponse.json();
-            
-            if (statusData.status === 'succeeded') {
-              result = statusData;
-              profileImage = statusData.output;
-              break;
-            } else if (statusData.status === 'failed') {
-              console.error('Image generation failed:', statusData.error);
-              break;
-            }
-            
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            attempts++;
+        try {
+          const data = await response.json();
+          
+          if (data.error) {
+            throw new Error(data.error);
           }
+          
+          if (data.output && Array.isArray(data.output) && data.output.length > 0) {
+            return data.output[0];
+          }
+          
+          throw new Error('No image URL in response');
+        } catch (error) {
+          if (retryCount < 2) { // Try up to 3 times (initial + 2 retries)
+            console.log(`Profile image generation attempt ${retryCount + 1} failed, retrying...`);
+            return generateProfileImage(retryCount + 1);
+          }
+          throw error;
         }
+      };
+      
+      // Generate profile image with retries
+      let profileImage = '';
+      try {
+        profileImage = await generateProfileImage();
       } catch (error) {
         console.error('Error generating profile image:', error);
+        // Continue without profile image if all retries fail
       }
       
       if (nameMatch && backstoryMatch && typeMatch && missionMatch) {
@@ -791,7 +828,14 @@ Defense: ${generatedStats.find(s => s.key === 'defense')?.value}`;
           isCreating: false,
           inventory: newInventory,
           coins: coinsMatch ? parseInt(coinsMatch[1]) : 0,
-          characterInfo: { name, type, backstory, mission, profileImage },
+          characterInfo: { 
+            name, 
+            type, 
+            backstory, 
+            mission, 
+            profileImage,
+            description: characterDescription 
+          },
           botResponse: output,
           messages: [{
             content: `Welcome, ${name}!\n\n${backstory}\n\nWhat would you like to do?`,

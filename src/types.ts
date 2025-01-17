@@ -7,6 +7,16 @@ export interface InventoryItem {
   statBonus?: {
     stat: string;
     value: number;
+    imageRequest?: {
+      prompt: string;
+      width: number;
+      height: number;
+      scheduler: string;
+      num_outputs: number;
+      guidance_scale: number;
+      negative_prompt: string;
+      num_inference_steps: number;
+    };
   };
   damage?: number;
   defense?: number;
@@ -33,6 +43,12 @@ export interface Message {
   suggestions?: string[];
 }
 
+interface CharacterDescription {
+  type: string;
+  gender: string;
+  look: string;
+}
+
 export interface CharacterInfo {
   characterInfo: {
     name: string;
@@ -40,5 +56,6 @@ export interface CharacterInfo {
     backstory: string;
     mission: string;
     profileImage?: string;
+    description?: CharacterDescription;
   } | null;
 }

@@ -36,6 +36,9 @@ export function AnimationOverlay({ selectedAnimation, leftHandUrl, rightHandUrl,
   useEffect(() => {
     if (rightHandUrl) {
       const img = new Image();
+      img.onerror = () => {
+        rightHandImageRef.current = null;
+      };
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         rightHandImageRef.current = img;
@@ -49,6 +52,9 @@ export function AnimationOverlay({ selectedAnimation, leftHandUrl, rightHandUrl,
   useEffect(() => {
     if (leftHandUrl) {
       const img = new Image();
+      img.onerror = () => {
+        leftHandImageRef.current = null;
+      };
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         leftHandImageRef.current = img;
@@ -80,6 +86,12 @@ export function AnimationOverlay({ selectedAnimation, leftHandUrl, rightHandUrl,
       
       const response = await fetch(url);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+      
+      // Handle non-GIF responses
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('image/gif')) {
+        throw new Error('Invalid image format');
+      }
       
       const buffer = await response.arrayBuffer();
       setLoadingProgress(30);
@@ -155,7 +167,8 @@ export function AnimationOverlay({ selectedAnimation, leftHandUrl, rightHandUrl,
       setLoading(false);
     } catch (error) {
       setLoading(false);
-      throw error;
+      setError('Failed to load animation');
+      console.error('Animation loading error:', error);
     } finally {
       isLoadingRef.current = false;
     }

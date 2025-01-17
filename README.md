@@ -2,7 +2,7 @@
 
 A text-based RPG game where you navigate the treacherous waters of corporate life. Built with React, TypeScript, and Three.js. Features real-time character animations with item tracking and dynamic storytelling.
 
-![Game Screenshot](https://github.com/user-attachments/assets/63b88770-5781-4d47-8351-6b156b208b40)
+![Game Screenshot](https://github.com/user-attachments/assets/867e9c32-11f5-4078-887c-224f19a2a560)
 
 ## Features
 

@@ -152,7 +152,16 @@ export function GameUI({
     }
 
     try {
-      const imageUrl = await generateImage(`${item.name} on white background, single product`);
+      const response = await fetch(WORKER_URLS.ITEM, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ prompt: `${item.name} on white background, single product` })
+      });
+      const data = await response.json();
+      if (data.error) throw new Error(data.error);
+      const imageUrl = data.output?.[0] || null;
       
       if (imageUrl) {
         itemImageCache.current.set(item.name, imageUrl);
